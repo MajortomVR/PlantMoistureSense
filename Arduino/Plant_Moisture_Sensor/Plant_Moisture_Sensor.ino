@@ -3,43 +3,78 @@
   642 room air moisture
 */
 
-int SENSOR_POWER_PIN = 2;
+int SENSOR_POWER_PIN = 2;           // VCC for Sensor
 int SENSOR_ADC_PIN = A0;
+bool serialConnectionOpen = false;
 
+/**
+  Initial Setup.
+*/
 void setup() {
   Serial.begin(9600);
-  pinMode(SENSOR_POWER_PIN, OUTPUT);    
+  pinMode(SENSOR_POWER_PIN, OUTPUT);
+  // Deactivate Sensor
+  digitalWrite(SENSOR_POWER_PIN, LOW);
 }
 
-void loop() {
-  // Deactivate Sensor (To reduce power consumption it is only activated when needed)
-  digitalWrite(SENSOR_POWER_PIN, LOW);  
-  delay(500);
-  bool start_measurement = false;
+/**
+  Called when a client has successfully connected.
+*/
+void handleConnectionOpened() {
+  serialConnectionOpen = true;
+  Serial.println("ID=PLANT_SENSOR_1.0;");
+}
 
-  // Serial communication message handling
-  while (Serial.available() > 0) {    
-    char incomingByte = Serial.read();
-    start_measurement = true;
+/**
+  Called when a client has closed the connection.
+*/
+void handleConnectionClosed() {
+  serialConnectionOpen = false;
+}
+
+/**
+  MAIN LOOP
+*/
+void loop() {  
+  delay(200);
+  // When a client connects, send an identifier back. This is used to find all the connected plant sensors by the client program.
+  if (Serial && !serialConnectionOpen) {
+    handleConnectionOpened();
+  }
+  if (!Serial && serialConnectionOpen) {
+    handleConnectionClosed();
   }
 
-  // If we have a start_measurement signal -> Read the sensor value from the ADC and send it on the serial connection.
-  if (start_measurement) {
-    Serial.println("Measuring...");    
-    // Activate Sensor
-    digitalWrite(SENSOR_POWER_PIN, HIGH);
-    delay(1000);
+  // Sensor
+  if (Serial && serialConnectionOpen) {
+    // Deactivate Sensor (To reduce power consumption it is only activated when needed)
+    digitalWrite(SENSOR_POWER_PIN, LOW);  
+    delay(100);
+    bool start_measurement = false;
 
-    int measurementCount = 5;
-    int value = 0;
-
-    for (int i=0; i<measurementCount; i++) {
-      value += analogRead(SENSOR_ADC_PIN);
-      delay(5);
+    // Serial communication message handling
+    while (Serial.available() > 0) {    
+      char incomingByte = Serial.read();
+      start_measurement = true;
     }
 
-    value /= measurementCount;
-    
-    Serial.println(value);
+    // If we have a start_measurement signal -> Read the sensor value from the ADC and send it on the serial connection.
+    if (start_measurement) {
+      Serial.println("Measuring...");    
+      // Activate Sensor
+      digitalWrite(SENSOR_POWER_PIN, HIGH);
+      delay(1000);
+
+      const int measurementCount = 5;
+      int value = 0;
+
+      for (int i=0; i<measurementCount; i++) {
+        value += analogRead(SENSOR_ADC_PIN);
+        delay(5);
+      }
+
+      value /= measurementCount;
+      Serial.println(value);
+    }
   }
 }

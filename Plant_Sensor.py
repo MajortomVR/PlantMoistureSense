@@ -7,6 +7,7 @@
 import serial
 import time
 import wx
+import serial.tools.list_ports
 
 # USER SPECIFIC
 ARDUINO_PORT = '/dev/ttyUSB0'
@@ -15,6 +16,7 @@ MIN_SENSOR_VALUE = 350
 #---------------
 
 TIMEOUT = 30.0
+
 
 
 def clamp(min_value, max_value, value):
@@ -82,8 +84,52 @@ class ArduinoConnection:
         return None
     
 
+def findPlantSensorPorts() -> list:
+    """
+    Tries to connect to every port and listens for a specific id that the plant sensor returns.
+    
+    Returns:
+        A list of ports that have a plant sensor connected.
+    """
+    ports = serial.tools.list_ports.comports()    
+    for port in ports:
+        print(port.description, port.device, port.hwid, port.serial_number, port.vid, port.pid)
+    
+    plantSensorPorts = []
+    
+    for port in ports:
+        try:
+            print(f"Connecting to {port}...")
+            with serial.Serial(port=port.device, baudrate=9600, timeout=5) as connection:
+                print("connected!")
+                start = time.time()
+                while (time.time() - start < 2.0):                
+                    if connection.in_waiting > 0:
+                        message = connection.read_all().decode('utf-8').strip()                                            
+                        if (message.startswith("ID=PLANT_SENSOR")):
+                            print(f"--> Plant Sensor found on port {port}! ({message})")
+                            plantSensorPorts.append(port)
+                            break
+                        
+        except serial.SerialException as e:
+            #print(f"Serial connection error: {e}")
+            pass
+        
+    return plantSensorPorts
+
+
+"""
+    MAIN
+"""
 def main():    
-    arduino = ArduinoConnection(ARDUINO_PORT)
+    ports = findPlantSensorPorts()    
+    
+    if (len(ports) == 0):
+        print("No Plant Sensor was found!")
+        return
+    
+    port = ports[0].device
+    arduino = ArduinoConnection(port)
     timestamp = time.time()
     value = 0
     
@@ -132,7 +178,7 @@ def main():
     # Open a window and display the humidity:
     options = (wx.OK | wx.ICON_INFORMATION) if plant_water_percentage > 0.01 else wx.ICON_WARNING        
     ap = wx.App()
-    wx.MessageBox(message, "Plant Sensor", options)
+    wx.MessageBox(message, f"Plant Sensor  [{port}]", options)
     
     
 
