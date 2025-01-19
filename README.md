@@ -44,7 +44,11 @@ You can find more information on Capacitive Soil Moisture Sensors and how they w
 
 
 ## Usage:
-1) To run the desktop application, use the following command:
+1) Install dependencies
+    ```
+    pip install pyserial wxPython
+    ```
+2) To run the desktop application, use the following command:
     ```
     python3 Plant_Sensor.py
     ```
