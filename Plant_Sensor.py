@@ -171,7 +171,7 @@ def main():
         range = MAX_SENSOR_VALUE - MIN_SENSOR_VALUE
         plant_water_percentage = 100 - ((value - MIN_SENSOR_VALUE) / range) * 100
         plant_water_percentage = clamp(0, 100, plant_water_percentage)    
-        message = f"Soil moisture: {plant_water_percentage:.0f}%"        
+        message = f"Soil moisture: {plant_water_percentage:.0f}%  ({value})"
     else:
         message = "ERROR: Failed to get a valid sensor value from the Arduino!"
         
