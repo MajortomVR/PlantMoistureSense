@@ -105,7 +105,7 @@ def findPlantSensorPorts() -> list:
                 start = time.time()
                 while (time.time() - start < 2.0):                
                     if connection.in_waiting > 0:
-                        message = connection.read_all().decode('utf-8').strip()                                            
+                        message = connection.readline().decode('utf-8').strip()                                            
                         if (message.startswith("ID=PLANT_SENSOR")):
                             print(f"--> Plant Sensor found on port {port}! ({message})")
                             plantSensorPorts.append(port)
