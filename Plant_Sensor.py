@@ -10,7 +10,6 @@ import wx
 import serial.tools.list_ports
 
 # USER SPECIFIC
-ARDUINO_PORT = '/dev/ttyUSB0'
 MAX_SENSOR_VALUE = 500
 MIN_SENSOR_VALUE = 350
 #---------------
