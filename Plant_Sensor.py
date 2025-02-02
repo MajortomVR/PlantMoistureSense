@@ -135,13 +135,13 @@ def main():
     # Get the current humidity value from the Sensor
     try:
         while True:
-            arduino.send_message("GetValue\n")
+            arduino.send_message("CMD_GET;SENSOR_VALUE;\n")
             time.sleep(1)
             message = arduino.get_message()
             
             if message:
                 print(f'Received message: "{message}"')
-                value = parse_value(message)
+                value = parse_value(message.replace(';', ''))
                 
             # If the timeout is reached break out of the loop
             if time.time() - timestamp > TIMEOUT:

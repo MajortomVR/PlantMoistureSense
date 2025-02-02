@@ -1,3 +1,30 @@
+#include <EEPROM.h>
+
+/*
+  Message Structure:
+  - CMD_GET;[VAR_NAME];
+    FW_VERSION
+    SENSOR_NAME
+    SENSOR_VALUE
+
+    Example:
+        "CMD_GET;FW_VERSION;"
+
+  - CMD_SET;[VAR_NAME];[VALUE];
+    SENSOR_NAME  -  <24 character string>
+
+    Example:
+        "CMD_SET;SENSOR_NAME;Plant Sensor 1;"
+
+  Return structure:
+    [RETURN_VALUE]; (without brackets)
+    Errors start with ERROR
+
+    Examples:
+      413;
+      ERROR ...;
+*/
+
 /*
   I measured 289 when put in a glass of water
   642 room air moisture
@@ -12,6 +39,84 @@ bool serialConnectionOpen = false;
 int lastSensorMeasurementValue = 0;
 unsigned long lastPeriodicMeasurementTimestamp = 0;
 unsigned long lastLedFlashTimestamp = 0;
+
+
+/*
+  EEPROM Struct
+  int version
+  char sensorName[24]
+
+*/
+
+enum eSerialCmd {
+  CMD_UNKNOWN,
+  CMD_GET,
+  CMD_SET
+};
+struct Message {
+  eSerialCmd cmd;
+  String variable;
+  String value;
+};
+
+/**
+  Returns the command
+*/
+eSerialCmd parseCommand(String &receivedMessage) {
+  if (receivedMessage.startsWith("CMD_GET;")) return CMD_GET;
+  if (receivedMessage.startsWith("CMD_SET;")) return CMD_SET;
+  return CMD_UNKNOWN;
+}
+
+/**
+  Parse the Message
+    Example Message.
+*/
+Message parseMessage(String &receivedMessage) {
+  Message msg;
+  msg.cmd = parseCommand(receivedMessage);
+  int cmdEndIndex = receivedMessage.indexOf(';');  
+  int cmdVariableEndIndex = receivedMessage.indexOf(';', cmdEndIndex + 1);
+  int cmdValueEndIndex = receivedMessage.indexOf(';', cmdVariableEndIndex + 1);  
+  
+  if (cmdEndIndex >= 0 && cmdVariableEndIndex >= 0) {
+    msg.variable = receivedMessage.substring(cmdEndIndex + 1, cmdVariableEndIndex);
+    if (cmdValueEndIndex >= 0) msg.value = receivedMessage.substring(cmdVariableEndIndex + 1, cmdValueEndIndex);
+  }
+  
+  return msg;
+}
+
+/**
+  Handle the command that was received over the serial connection.
+*/
+void handleMessage(Message &message) {
+  switch (message.cmd) {
+    // GET
+    case CMD_GET:
+      if (message.variable == "FW_VERSION" || message.variable == "VERSION") {
+        Serial.println("V1.1;");
+      } else if (message.variable == "SENSOR_NAME") {
+        Serial.println("Plant Sensor 13;");
+      } else if (message.variable == "SENSOR_VALUE") {        
+        lastSensorMeasurementValue = readSensor();
+        Serial.println(String(lastSensorMeasurementValue) + ';');
+      } else {
+        Serial.println("ERROR: Unknown request Get: [" + message.variable + "];");
+      }
+      break;
+    // SET
+    case CMD_SET:
+      if (message.variable == "SENSOR_NAME") {
+        Serial.println("Setting Sensor Name to [" + message.value + "];");
+      }
+      break;
+    // UNKNOWN
+    case CMD_UNKNOWN:
+      Serial.println("ERROR: Unknown Command!;");
+      break;
+  }
+}
 
 /**
   Initial Setup.
@@ -82,14 +187,21 @@ void loop() {
 
     // Serial communication message handling
     while (Serial.available() > 0) {    
-      char incomingByte = Serial.read();
-      start_measurement = true;
-    }
-    
-    if (start_measurement) {
-      Serial.println("Measuring...");
-      lastSensorMeasurementValue = readSensor();
-      Serial.println(lastSensorMeasurementValue);
+      String receivedData = Serial.readStringUntil('\n');
+
+      if (receivedData.length() > 0) {
+        Message msg = parseMessage(receivedData);
+        handleMessage(msg);
+        /*
+        if (msg.cmd == CMD_GET) {
+          Serial.println("RETURN_CMD_GET [" + msg.variable + "] [" + msg.value + "]");
+        } else if (msg.cmd == CMD_SET) {
+          Serial.println("RETURN_CMD_SET [" + msg.variable + "] [" + msg.value + "]");
+        } else if (msg.cmd == CMD_UNKNOWN) {
+          Serial.println("UNKNOWN CMD!");
+        }
+        */
+      }      
     }
   }
 
